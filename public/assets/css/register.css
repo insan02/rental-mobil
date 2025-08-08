@@ -1,0 +1,490 @@
+:root {
+    --primary-color: #007bff;
+    --secondary-color: #6c757d;
+    --accent-color: #28a745;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --dark-color: #343a40;
+    --light-color: #f8f9fa;
+    --car-blue: #1e3a8a;
+    --car-red: #dc2626;
+    --car-gold: #f59e0b;
+}
+
+* {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    overflow-x: hidden;
+}
+
+/* Navigation Bar */
+.navbar {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1050;
+    transition: all 0.3s ease;
+    padding: 1rem 0;
+}
+
+.navbar.scrolled {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: white !important;
+}
+
+.navbar.scrolled .navbar-brand {
+    color: var(--dark-color) !important;
+}
+
+.nav-link {
+    color: white !important;
+    font-weight: 500;
+    margin: 0 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.navbar.scrolled .nav-link {
+    color: var(--dark-color) !important;
+}
+
+.nav-link:hover {
+    color: var(--accent-color) !important;
+}
+
+/* Landing Section */
+.landing-section {
+    min-height: 100vh;
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.9) 0%, rgba(32, 201, 151, 0.8) 50%, rgba(111, 207, 151, 0.9) 100%),
+                url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600"><defs><pattern id="cars" x="0" y="0" width="200" height="100" patternUnits="userSpaceOnUse"><rect width="200" height="100" fill="none"/><g fill="rgba(255,255,255,0.05)"><path d="M50 50h100v20h-100z"/><circle cx="60" cy="80" r="8"/><circle cx="140" cy="80" r="8"/></g></pattern></defs><rect width="1200" height="600" fill="url(%23cars)"/></svg>');
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    display: flex;
+    align-items: center;
+    color: white;
+    overflow: hidden;
+}
+
+.floating-shapes {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.car-icon {
+    position: absolute;
+    font-size: 2rem;
+    color: rgba(255, 255, 255, 0.1);
+    animation: floatCar 15s infinite linear;
+}
+
+.car-icon:nth-child(1) { left: 10%; animation-delay: 0s; }
+.car-icon:nth-child(2) { left: 30%; animation-delay: 3s; }
+.car-icon:nth-child(3) { left: 50%; animation-delay: 6s; }
+.car-icon:nth-child(4) { left: 70%; animation-delay: 9s; }
+.car-icon:nth-child(5) { left: 90%; animation-delay: 12s; }
+
+@keyframes floatCar {
+    0% {
+        transform: translateY(100vh) translateX(-50px);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-100px) translateX(50px);
+        opacity: 0;
+    }
+}
+
+.hero-content {
+    text-align: center;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 2rem;
+    z-index: 2;
+    position: relative;
+    margin-top: 4rem;
+}
+
+.hero-title {
+    font-size: 4.5rem;
+    font-weight: 800;
+    margin-bottom: 1.5rem;
+    text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+    animation: slideInUp 1s ease-out;
+}
+
+.hero-subtitle {
+    font-size: 1.4rem;
+    margin-bottom: 3rem;
+    opacity: 0.95;
+    animation: slideInUp 1s ease-out 0.2s both;
+    line-height: 1.6;
+}
+
+/* Feature Grid */
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    margin: 3rem 0;
+    animation: slideInUp 1s ease-out 0.4s both;
+}
+
+.feature-card {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    padding: 2.5rem 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    transition: left 0.5s;
+}
+
+.feature-card:hover::before {
+    left: 100%;
+}
+
+.feature-card:hover {
+    transform: translateY(-10px);
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.feature-icon {
+    font-size: 3.5rem;
+    margin-bottom: 1.5rem;
+    color: var(--warning-color);
+    text-shadow: 0 0 20px rgba(255, 193, 7, 0.3);
+}
+
+.feature-title {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.feature-description {
+    opacity: 0.9;
+    line-height: 1.6;
+}
+
+/* CTA Buttons */
+.cta-buttons {
+    margin-top: 3rem;
+    animation: slideInUp 1s ease-out 0.6s both;
+}
+
+.btn-cta {
+    padding: 1.2rem 3.5rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+    border-radius: 50px;
+    margin: 0.5rem;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+    position: relative;
+    overflow: hidden;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.btn-primary-cta {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    border: none;
+    box-shadow: 0 8px 25px rgba(0, 123, 255, 0.3);
+}
+
+.btn-outline-cta {
+    background: transparent;
+    color: white;
+    border: 2px solid white;
+}
+
+.btn-cta:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+}
+
+.btn-primary-cta:hover {
+    color: white;
+    box-shadow: 0 15px 35px rgba(0, 123, 255, 0.5);
+}
+
+.btn-outline-cta:hover {
+    background: white;
+    color: var(--accent-color);
+    border-color: white;
+}
+
+/* Register Section */
+.register-section {
+    min-height: 100vh;
+    background: 
+        linear-gradient(135deg, rgba(248, 249, 250, 0.9) 0%, rgba(233, 236, 239, 0.9) 100%),
+        url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><defs><radialGradient id="bg"><stop offset="0%" stop-color="rgba(40,167,69,0.05)"/><stop offset="100%" stop-color="rgba(40,167,69,0)"/></radialGradient></defs><rect width="1000" height="1000" fill="url(%23bg)"/><g fill="rgba(40,167,69,0.02)"><circle cx="100" cy="100" r="50"/><circle cx="300" cy="300" r="30"/><circle cx="700" cy="200" r="40"/><circle cx="900" cy="800" r="60"/><circle cx="200" cy="700" r="35"/></g></svg>');
+    background-size: cover;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6rem 0;
+}
+
+.register-container {
+    background: white;
+    border-radius: 25px;
+    padding: 3rem;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+    width: 100%;
+    max-width: 480px;
+    margin: 2rem;
+    animation: slideInUp 1s ease-out;
+    position: relative;
+    overflow: hidden;
+}
+
+.register-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    background: linear-gradient(90deg, var(--accent-color), var(--primary-color), var(--warning-color));
+}
+
+.brand-section {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+
+.brand-logo {
+    font-size: 2.8rem;
+    font-weight: 800;
+    color: var(--accent-color);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
+
+.brand-logo:hover {
+    color: var(--primary-color);
+    transform: scale(1.05);
+}
+
+.brand-logo i {
+    font-size: 3.2rem;
+}
+
+.register-title {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--dark-color);
+    margin-bottom: 0.5rem;
+}
+
+.register-subtitle {
+    color: var(--secondary-color);
+    margin-bottom: 2rem;
+    font-size: 1.1rem;
+}
+
+.form-floating {
+    margin-bottom: 1.5rem;
+}
+
+.form-control {
+    border: 2px solid #e9ecef;
+    border-radius: 15px;
+    padding: 1.3rem;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+}
+
+.form-control:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.15);
+    background: white;
+    transform: translateY(-2px);
+}
+
+.btn-register {
+    background: linear-gradient(135deg, var(--accent-color), #198754);
+    border: none;
+    border-radius: 15px;
+    padding: 1.3rem 2rem;
+    font-size: 1.2rem;
+    font-weight: 700;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.btn-register:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(40, 167, 69, 0.4);
+}
+
+.login-link {
+    text-align: center;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.login-link a {
+    color: var(--accent-color);
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.login-link a:hover {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
+.alert {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+}
+
+/* Back to Top */
+.back-to-top {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: linear-gradient(135deg, var(--accent-color), var(--primary-color));
+    color: white;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+}
+
+.back-to-top.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.back-to-top:hover {
+    transform: translateY(-3px) scale(1.1);
+    box-shadow: 0 15px 35px rgba(40, 167, 69, 0.4);
+}
+
+/* Spinner */
+.spinner-border {
+    animation: spinner-border 0.75s linear infinite;
+}
+
+@keyframes spinner-border {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .hero-title {
+        font-size: 2.8rem;
+    }
+
+    .hero-subtitle {
+        font-size: 1.2rem;
+    }
+
+    .feature-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .btn-cta {
+        padding: 1rem 2.5rem;
+        font-size: 1.1rem;
+        display: block;
+        margin: 0.5rem 0;
+    }
+
+    .register-container {
+        margin: 1rem;
+        padding: 2rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .hero-content {
+        padding: 1rem;
+    }
+}

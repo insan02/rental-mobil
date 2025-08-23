@@ -27,14 +27,6 @@
                 </a>
             @endif
 
-            @if(data_get(auth()->user(), 'role') == 'customer')
-                <a href="{{route('transaksis.index')}}" class="nav-item nav-link {{Request::routeIs('transaksis.index*') ? 'active' : ''}}">
-                    <i class="fa fa-shopping-cart me-2"></i>Sewa Mobil
-                </a>
-                <a href="{{route('transaksis.history')}}" class="nav-item nav-link {{Request::routeIs('transaksis.history*') ? 'active' : ''}}">
-                    <i class="fa fa-history me-2"></i>Riwayat Transaksi
-                </a>
-            @endif
         </div>
     </nav>
 </div>

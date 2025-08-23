@@ -7,6 +7,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+
 
 class MobilController extends Controller
 {
@@ -60,7 +62,7 @@ class MobilController extends Controller
         ]);
 
         $mobilData = [
-            'user_id' => Auth::id(), // Otomatis mengisi dengan ID user yang sedang login
+            'user_id' => Auth::id(),
             'nopolisi' => $request->input('nopolisi'),
             'merek' => $request->input('merek'),
             'jenis' => $request->input('jenis'),
@@ -72,8 +74,13 @@ class MobilController extends Controller
         if ($request->hasFile('foto')) {
             $file = $request->file('foto');
             $filename = time() . '_' . $file->getClientOriginalName();
-            $path = $file->storeAs('mobils', $filename, 'public');
-            $mobilData['foto'] = $path;
+            
+            // Store in mobils folder
+            $mobilsPath = $file->storeAs('mobils', $filename, 'public');
+            $mobilData['foto'] = $mobilsPath;
+            
+            // Backup to archived_fotomobil folder
+            $this->backupFotoToArchive($file, $filename);
         }
 
         Mobil::create($mobilData);
@@ -114,7 +121,6 @@ class MobilController extends Controller
         ]);
 
         $mobilData = [
-            // user_id tidak diubah saat update, tetap menggunakan yang sudah ada
             'nopolisi' => $request->input('nopolisi'),
             'merek' => $request->input('merek'),
             'jenis' => $request->input('jenis'),
@@ -124,7 +130,7 @@ class MobilController extends Controller
 
         // Handle file upload
         if ($request->hasFile('foto')) {
-            // Delete old file if exists
+            // Delete old file from mobils folder if exists
             $oldFoto = $mobil->getAttribute('foto');
             if (!empty($oldFoto) && Storage::disk('public')->exists($oldFoto)) {
                 Storage::disk('public')->delete($oldFoto);
@@ -132,8 +138,13 @@ class MobilController extends Controller
 
             $file = $request->file('foto');
             $filename = time() . '_' . $file->getClientOriginalName();
-            $path = $file->storeAs('mobils', $filename, 'public');
-            $mobilData['foto'] = $path;
+            
+            // Store in mobils folder
+            $mobilsPath = $file->storeAs('mobils', $filename, 'public');
+            $mobilData['foto'] = $mobilsPath;
+            
+            // Backup to archived_fotomobil folder
+            $this->backupFotoToArchive($file, $filename);
         }
 
         $mobil->update($mobilData);
@@ -147,9 +158,21 @@ class MobilController extends Controller
      */
     public function destroy(Mobil $mobil)
     {
-        // Delete associated file - using getAttribute to safely access the foto property
+        // Get foto path before deletion
         $fotoPath = $mobil->getAttribute('foto');
+        
+        // If foto exists, backup to archive before deleting
         if (!empty($fotoPath) && Storage::disk('public')->exists($fotoPath)) {
+            // Extract filename from path
+            $filename = basename($fotoPath);
+            
+            // Copy to archived_fotomobil folder if not already exists
+            $archivePath = 'archived_fotomobil/' . $filename;
+            if (!Storage::disk('public')->exists($archivePath)) {
+                Storage::disk('public')->copy($fotoPath, $archivePath);
+            }
+            
+            // Delete from mobils folder
             Storage::disk('public')->delete($fotoPath);
         }
 
@@ -157,5 +180,44 @@ class MobilController extends Controller
 
         return redirect()->route('mobils.index')
                         ->with('success', 'Mobil deleted successfully.');
+    }
+
+    /**
+     * Backup foto to archived_fotomobil folder
+     */
+    private function backupFotoToArchive($file, $filename)
+    {
+        try {
+            // Store backup copy in archived_fotomobil folder
+            $file->storeAs('archived_fotomobil', $filename, 'public');
+        } catch (\Exception $e) {
+            // Log error but don't stop the main process
+            Log::error('Failed to backup foto to archive: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get archived foto path for a given filename
+     */
+    public static function getArchivedFotoPath($fotoPath)
+    {
+        if (empty($fotoPath)) {
+            return null;
+        }
+
+        $filename = basename($fotoPath);
+        $archivePath = 'archived_fotomobil/' . $filename;
+        
+        // Check if archived version exists
+        if (Storage::disk('public')->exists($archivePath)) {
+            return $archivePath;
+        }
+        
+        // Check if original still exists
+        if (Storage::disk('public')->exists($fotoPath)) {
+            return $fotoPath;
+        }
+        
+        return null;
     }
 }

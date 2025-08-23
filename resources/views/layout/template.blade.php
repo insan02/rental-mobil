@@ -30,6 +30,19 @@
 
     <!-- Template Stylesheet -->
     <link href="{{asset('assets/css/style.css')}}" rel="stylesheet">
+
+    <!-- Custom CSS untuk Customer Layout -->
+    @if(auth()->user()->role === 'customer')
+    <style>
+        .content {
+            margin-left: 0 !important;
+            width: 100% !important;
+        }
+        .container-fluid.position-relative {
+            padding-left: 0 !important;
+        }
+    </style>
+    @endif
 </head>
 
 <body>
@@ -42,12 +55,12 @@
         </div>
         <!-- Spinner End -->
 
-        <!-- Sidebar Start -->
-        @include('layout.sidebar')
-        <!-- Sidebar End -->
+        @if(auth()->user()->role !== 'customer')
+            @include('layout.sidebar')
+        @endif
 
         <!-- Content Start -->
-        <div class="content">
+        <div class="content @if(auth()->user()->role === 'customer') w-100 @endif">
             <!-- Navbar Start -->
             @include('layout.navbar')
             <!-- Navbar End -->

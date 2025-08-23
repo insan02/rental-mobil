@@ -66,14 +66,14 @@
                 @forelse($mobils as $mobil)
                     <div class="col-xl-4 col-lg-6 col-md-6 mb-4">
                         <div class="card h-100 shadow-sm border-0">
-                            <div class="card-img-top position-relative overflow-hidden" style="height: 200px;">
+                            <div class="card-img-top position-relative d-flex align-items-center justify-content-center" style="height: 200px; background-color: #f8f9fa;">
                                 @if($mobil->foto)
                                     <img src="{{ asset('storage/' . $mobil->foto) }}" 
                                          alt="{{ $mobil->merek }}" 
-                                         class="w-80 h-40"
-                                         style="object-fit: cover;">
+                                         class="img-fluid"
+                                         style="max-width: 100%; max-height: 100%; object-fit: contain; object-position: center;">
                                 @else
-                                    <div class="bg-light d-flex align-items-center justify-content-center h-100">
+                                    <div class="d-flex align-items-center justify-content-center h-100">
                                         <i class="fas fa-car text-muted" style="font-size: 4rem;"></i>
                                     </div>
                                 @endif

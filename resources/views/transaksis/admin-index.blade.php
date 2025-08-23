@@ -175,22 +175,29 @@
                                         
                                         <td>
                                             <div class="d-flex align-items-center">
-                                                @if($transaksi->mobil->foto)
-                                                    <img src="{{ asset('storage/' . $transaksi->mobil->foto) }}" 
-                                                        alt="{{ $transaksi->mobil->merek }}" 
-                                                        class="me-3 rounded shadow-sm" 
-                                                        style="width: 200px; height: 100px; object-fit: cover;">
-                                                @else
-                                                    <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" 
-                                                        style="width: 70px; height: 50px;">
-                                                        <i class="fas fa-car text-muted"></i>
-                                                    </div>
-                                                @endif
-                                                <div>
-                                                    <strong>{{ $transaksi->mobil->merek }}</strong><br>
-                                                    <small class="text-muted">{{ $transaksi->mobil->nopolisi }}</small>
-                                                </div>
-                                            </div>
+    @php
+        $archivedFotoPath = \App\Http\Controllers\MobilController::getArchivedFotoPath($transaksi->mobil->foto ?? '');
+    @endphp
+
+    @if($archivedFotoPath)
+        <img src="{{ asset('storage/' . $archivedFotoPath) }}" 
+             alt="{{ $transaksi->mobil->merek ?? 'Mobil tidak tersedia' }}" 
+             class="me-3 rounded shadow-sm" 
+             style="width: 130px; height: 65px; object-fit: cover;"
+             onerror="this.src='{{ asset('images/no-car.png') }}'; this.style.width='60px'; this.style.height='40px';">
+    @else
+        <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" 
+             style="width: 60px; height: 40px;">
+            <i class="fas fa-car text-muted"></i>
+        </div>
+    @endif
+
+    <div>
+        <strong>{{ $transaksi->mobil->merek ?? '-' }}</strong><br>
+        <small class="text-muted">{{ $transaksi->mobil->nopolisi ?? '-' }}</small>
+    </div>
+</div>
+
                                         </td>
                                         
                                         <td>

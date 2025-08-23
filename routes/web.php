@@ -40,6 +40,15 @@ Route::middleware(['role:customer'])->group(function () {
 
 // Both admin and customer can access history and update status
 Route::middleware(['role:customer,admin'])->group(function () {
+    Route::post('/check-archived-foto', function(\Illuminate\Http\Request $request) {
+    $fotoPath = $request->input('foto_path');
+    $archivedPath = MobilController::getArchivedFotoPath($fotoPath);
+    
+    return response()->json([
+        'foto_url' => $archivedPath ? asset('storage/' . $archivedPath) : null,
+        'exists' => !empty($archivedPath)
+    ]);
+})->name('check-archived-foto');
     Route::get('/transaksis-history', [TransaksiController::class, 'history'])->name('transaksis.history');
     Route::patch('transaksis/{transaksi}/status', [TransaksiController::class, 'updateStatus'])->name('transaksis.updateStatus');
     Route::delete('/transaksis/{transaksi}', [TransaksiController::class, 'destroy'])->name('transaksis.destroy');

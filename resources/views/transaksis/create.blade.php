@@ -38,13 +38,18 @@
                                     </h5>
                                     
                                     <div class="text-center mb-3">
-                                        <img id="selected-car-image"
-                                             src="{{ $mobil->foto ? asset('storage/' . $mobil->foto) : asset('images/no-car.png') }}" 
-                                             alt="{{ $mobil->merek }}" 
-                                             class="img-fluid rounded shadow-sm" 
-                                             style="max-height: 200px; object-fit: cover; width: 100%;"
-                                             onerror="this.src='{{ asset('images/no-car.png') }}'; this.alt='Foto tidak tersedia';">
-                                    </div>
+    @php
+        use App\Http\Controllers\MobilController;
+        $archivedFotoPath = MobilController::getArchivedFotoPath($mobil->foto);
+        $fotoUrl = $archivedFotoPath ? asset('storage/' . $archivedFotoPath) : asset('images/no-car.png');
+    @endphp
+    <img id="selected-car-image"
+         src="{{ $fotoUrl }}" 
+         alt="{{ $mobil->merek }}" 
+         class="img-fluid rounded shadow-sm" 
+         style="max-height: 200px; object-fit: cover; width: 100%;"
+         onerror="this.src='{{ asset('images/no-car.png') }}'; this.alt='Foto tidak tersedia';">
+</div>
 
                                     <table class="table table-sm">
                                         <tr>

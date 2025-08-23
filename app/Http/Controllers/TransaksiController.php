@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Storage;
 
 
 class TransaksiController extends Controller
@@ -107,128 +108,91 @@ class TransaksiController extends Controller
     }
 
     /**
-     * Display transaction history for users
-     */
-    public function history(Request $request)
-    {
-        $user = Auth::user();
-        $perPage = $request->get('per_page', 10); // Default 10 items per page
-        $search = $request->get('search');
-        $statusFilter = $request->get('status_filter');
-        $dateFilter = $request->get('date_filter');
-        
-        if ($user->role === 'admin') {
-            // Update late transactions for admin
-            $this->updateLateTransactions();
-            
-            // Admin sees only completed transactions (status = 'Selesai')
-            $query = Transaksi::withTrashed()
-                            ->with(['user', 'mobil'])
-                            ->where('status', Transaksi::STATUS_SELESAI);
-            
-            // Admin search includes customer data
-            if ($search) {
-                $query->where(function($q) use ($search) {
-                    $q->where('nama', 'LIKE', "%{$search}%")
-                    ->orWhere('ponsel', 'LIKE', "%{$search}%")
-                    ->orWhere('alamat', 'LIKE', "%{$search}%")
-                    ->orWhere('total', 'LIKE', "%{$search}%")
-                    ->orWhereHas('mobil', function($mq) use ($search) {
-                        $mq->where('merek', 'LIKE', "%{$search}%")
-                            ->orWhere('nopolisi', 'LIKE', "%{$search}%")
-                            ->orWhere('jenis', 'LIKE', "%{$search}%");
-                    })
-                    ->orWhereHas('user', function($uq) use ($search) {
-                        $uq->where('name', 'LIKE', "%{$search}%")
-                            ->orWhere('email', 'LIKE', "%{$search}%");
-                    });
-                });
-            }
-            
-            // Admin status options (for completed transactions, we can filter by return status)
-            $statusOptions = [
-                'all' => 'Semua Transaksi',
-                'ontime' => 'Tepat Waktu',
-                'late' => 'Terlambat',
-                'early' => 'Lebih Awal'
-            ];
-            
-            // Apply return status filter for admin
-            if ($statusFilter && $statusFilter !== 'all') {
-                $query->whereNotNull('tgl_kembali_aktual');
-                if ($statusFilter === 'ontime') {
-                    $query->whereRaw('DATE(tgl_kembali_aktual) = DATE(tgl_kembali)');
-                } elseif ($statusFilter === 'late') {
-                    $query->whereRaw('DATE(tgl_kembali_aktual) > DATE(tgl_kembali)');
-                } elseif ($statusFilter === 'early') {
-                    $query->whereRaw('DATE(tgl_kembali_aktual) < DATE(tgl_kembali)');
-                }
-            }
-            
-        } else {
-            // Customer sees only their non-soft-deleted transactions
-            $query = Transaksi::with(['user', 'mobil'])
-                            ->where('user_id', $user->id);
-            
-            // Customer search (their own transactions)
-            if ($search) {
-                $query->where(function($q) use ($search) {
-                    $q->where('total', 'LIKE', "%{$search}%")
-                    ->orWhereHas('mobil', function($mq) use ($search) {
-                        $mq->where('merek', 'LIKE', "%{$search}%")
-                            ->orWhere('nopolisi', 'LIKE', "%{$search}%")
-                            ->orWhere('jenis', 'LIKE', "%{$search}%");
-                    });
-                });
-            }
-            
-            // Customer status options
-            $statusOptions = [
-                'all' => 'Semua Status',
-                'Wait' => 'Menunggu',
-                'Proses' => 'Diproses',
-                'Selesai' => 'Selesai',
-                'Terlambat' => 'Terlambat'
-            ];
-            
-            // Apply status filter for customer
-            if ($statusFilter && $statusFilter !== 'all') {
-                $query->where('status', $statusFilter);
-            }
-        }
-        
-        // Date filter (available for both admin and customer)
-        if ($dateFilter) {
-            switch ($dateFilter) {
-                case 'today':
-                    $query->whereDate('created_at', today());
-                    break;
-                case 'week':
-                    $query->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]);
-                    break;
-                case 'month':
-                    $query->whereMonth('created_at', now()->month)
-                        ->whereYear('created_at', now()->year);
-                    break;
-                case 'year':
-                    $query->whereYear('created_at', now()->year);
-                    break;
-            }
-        }
-        
-        $transaksis = $query->latest()->paginate($perPage);
-        
-        // Date filter options
-        $dateOptions = [
-            'all' => 'Semua Waktu',
-            'today' => 'Hari Ini',
-            'week' => 'Minggu Ini',
-            'month' => 'Bulan Ini',
-            'year' => 'Tahun Ini'
-        ];
-        
-        return view('transaksis.history', compact('transaksis', 'statusOptions', 'dateOptions'));
+ * Display transaction history for users
+ */
+public function history(Request $request)
+{
+    $user = Auth::user();
+    $perPage = $request->get('per_page', 10);
+    $search = $request->get('search');
+    $status = $request->get('status');
+    
+    // Base query dengan eager loading untuk mobil (termasuk yang soft deleted)
+    if ($user->role === 'admin') {
+        $query = Transaksi::withTrashed()
+                    ->with(['user', 'mobil' => function($query) {
+                        $query->withTrashed(); // Include soft deleted mobil
+                    }]);
+    } else {
+        $query = Transaksi::where('user_id', $user->id)
+                    ->with(['mobil' => function($query) {
+                        $query->withTrashed(); // Include soft deleted mobil
+                    }]);
     }
+    
+    // Apply search filter
+    if ($search) {
+        $query->where(function($q) use ($search) {
+            $q->where('nama', 'LIKE', "%{$search}%")
+              ->orWhere('ponsel', 'LIKE', "%{$search}%")
+              ->orWhere('alamat', 'LIKE', "%{$search}%")
+              ->orWhere('total', 'LIKE', "%{$search}%")
+              ->orWhereHas('mobil', function($mq) use ($search) {
+                  $mq->withTrashed()
+                     ->where('merek', 'LIKE', "%{$search}%")
+                     ->orWhere('nopolisi', 'LIKE', "%{$search}%")
+                     ->orWhere('jenis', 'LIKE', "%{$search}%");
+              });
+        });
+    }
+    
+    // Apply status filter
+    if ($status && $status !== 'all') {
+        $query->where('status', $status);
+    }
+    
+    // Apply date filter - ADDED: Make date filter functional
+    $dateFilter = $request->get('date_filter');
+    if ($dateFilter && $dateFilter !== 'all') {
+        switch ($dateFilter) {
+            case 'today':
+                $query->whereDate('created_at', today());
+                break;
+            case 'week':
+                $query->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()]);
+                break;
+            case 'month':
+                $query->whereMonth('created_at', now()->month)
+                      ->whereYear('created_at', now()->year);
+                break;
+            case 'year':
+                $query->whereYear('created_at', now()->year);
+                break;
+        }
+    }
+    
+    $transaksis = $query->latest()->paginate($perPage);
+    
+    // Get available statuses for filter - FIXED: Changed variable name to statusOptions
+    $statusOptions = [
+        'all' => 'Semua Status',
+        'Wait' => 'Menunggu',
+        'Proses' => 'Dalam Proses', 
+        'Selesai' => 'Selesai',
+        'Terlambat' => 'Terlambat'
+    ];
+    
+    // Add date filter options - ADDED: This was missing
+    $dateOptions = [
+        'all' => 'Semua Periode',
+        'today' => 'Hari Ini',
+        'week' => 'Minggu Ini',
+        'month' => 'Bulan Ini',
+        'year' => 'Tahun Ini'
+    ];
+    
+    return view('transaksis.history', compact('transaksis', 'statusOptions', 'dateOptions'));
+}
 
     public function cetakPdf(Request $request)
     {
@@ -502,49 +466,93 @@ class TransaksiController extends Controller
     }
 
         /**
-         * Remove the specified resource from storage.
-         */
-        public function destroy($id)
-    {
-        $user = Auth::user();
+ * Remove the specified resource from storage.
+ */
+public function destroy($id)
+{
+    $user = Auth::user();
+    
+    // Admin dapat menghapus semua transaksi (termasuk yang soft deleted)
+    if ($user->role === 'admin') {
+        $transaksi = Transaksi::withTrashed()->findOrFail($id);
         
-        // Admin dapat menghapus semua transaksi (termasuk yang soft deleted)
-        if ($user->role === 'admin') {
-            $transaksi = Transaksi::withTrashed()->findOrFail($id);
-            
-            // Jika sudah soft deleted, lakukan force delete
-            if ($transaksi->trashed()) {
-                $transaksi->forceDelete();
-                $message = 'Transaksi berhasil dihapus secara permanen.';
-            } else {
-                // Jika belum soft deleted, lakukan force delete langsung
-                $transaksi->forceDelete();
-                $message = 'Transaksi berhasil dihapus.';
+        // Get mobil data to check archived foto
+        $mobil = $transaksi->mobil()->withTrashed()->first();
+        
+        // Jika sudah soft deleted, lakukan force delete
+        if ($transaksi->trashed()) {
+            // Check if this is the last reference to this mobil's foto in archived transactions
+            if ($mobil && $this->isLastTransactionReference($mobil->id)) {
+                $this->deleteArchivedFoto($mobil->foto);
             }
+            
+            $transaksi->forceDelete();
+            $message = 'Transaksi berhasil dihapus secara permanen.';
         } else {
-            // Customer hanya bisa menghapus transaksi miliknya yang tidak soft deleted
-            $transaksi = Transaksi::findOrFail($id);
-            
-            // Check if customer can delete (only if status is Selesai)
-            if (!$transaksi->canCustomerDelete()) {
-                return redirect()->route('transaksis.history')
-                            ->with('error', 'Transaksi hanya dapat dihapus ketika status Selesai.');
+            // Jika belum soft deleted, lakukan force delete langsung
+            // Check if this is the last reference to this mobil's foto in archived transactions
+            if ($mobil && $this->isLastTransactionReference($mobil->id, $id)) {
+                $this->deleteArchivedFoto($mobil->foto);
             }
             
-            // Check ownership
-            if ($transaksi->user_id !== $user->id) {
-                return redirect()->route('transaksis.history')
-                            ->with('error', 'Anda tidak memiliki akses untuk menghapus transaksi ini.');
-            }
-            
-            // Customer deletion = soft delete
-            $transaksi->delete();
+            $transaksi->forceDelete();
             $message = 'Transaksi berhasil dihapus.';
         }
-
-        return redirect()->route('transaksis.history')
-                        ->with('success', $message);
+    } else {
+        // Customer hanya bisa menghapus transaksi miliknya yang tidak soft deleted
+        $transaksi = Transaksi::findOrFail($id);
+        
+        // Check if customer can delete (only if status is Selesai)
+        if (!$transaksi->canCustomerDelete()) {
+            return redirect()->route('transaksis.history')
+                        ->with('error', 'Transaksi hanya dapat dihapus ketika status Selesai.');
+        }
+        
+        // Check ownership
+        if ($transaksi->user_id !== $user->id) {
+            return redirect()->route('transaksis.history')
+                        ->with('error', 'Anda tidak memiliki akses untuk menghapus transaksi ini.');
+        }
+        
+        // Customer deletion = soft delete (no foto deletion)
+        $transaksi->delete();
+        $message = 'Transaksi berhasil dihapus.';
     }
+
+    return redirect()->route('transaksis.history')
+                    ->with('success', $message);
+}
+
+/**
+ * Check if this is the last transaction reference to a mobil
+ */
+private function isLastTransactionReference($mobilId, $excludeTransactionId = null)
+{
+    $query = Transaksi::withTrashed()->where('mobil_id', $mobilId);
+    
+    if ($excludeTransactionId) {
+        $query->where('id', '!=', $excludeTransactionId);
+    }
+    
+    return $query->count() <= 1;
+}
+
+/**
+ * Delete archived foto if no longer needed
+ */
+private function deleteArchivedFoto($fotoPath)
+{
+    if (empty($fotoPath)) {
+        return;
+    }
+    
+    $filename = basename($fotoPath);
+    $archivePath = 'archived_fotomobil/' . $filename;
+    
+    if (Storage::disk('public')->exists($archivePath)) {
+        Storage::disk('public')->delete($archivePath);
+    }
+}
 
     /**
      * Update status transaksi (untuk admin)

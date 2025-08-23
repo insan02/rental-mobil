@@ -124,16 +124,21 @@
                                             onchange="calculateTotal(); updateCarImage()">
                                         <option value="">Pilih Mobil</option>
                                         @foreach($mobils as $mobil)
+                                        @php
+    $archivedFotoPath = \App\Http\Controllers\MobilController::getArchivedFotoPath($mobil->foto);
+    $fotoUrl = $archivedFotoPath ? asset('storage/' . $archivedFotoPath) : '';
+@endphp
+
                                             <option value="{{ $mobil->id }}" 
-                                                    data-harga="{{ $mobil->harga }}"
-                                                    data-foto="{{ $mobil->foto ? asset('storage/' . $mobil->foto) : '' }}"
-                                                    data-merek="{{ $mobil->merek }}"
-                                                    data-nopolisi="{{ $mobil->nopolisi }}"
-                                                    data-jenis="{{ $mobil->jenis }}"
-                                                    data-kapasitas="{{ $mobil->kapasitas }}"
-                                                    {{ old('mobil_id', $transaksi->mobil_id) == $mobil->id ? 'selected' : '' }}>
-                                                {{ $mobil->merek }} - {{ $mobil->nopolisi }} (Rp {{ number_format($mobil->harga, 0, ',', '.') }}/hari)
-                                            </option>
+        data-harga="{{ $mobil->harga }}"
+        data-foto="{{ $fotoUrl }}"
+        data-merek="{{ $mobil->merek }}"
+        data-nopolisi="{{ $mobil->nopolisi }}"
+        data-jenis="{{ $mobil->jenis }}"
+        data-kapasitas="{{ $mobil->kapasitas }}"
+        {{ old('mobil_id', $transaksi->mobil_id) == $mobil->id ? 'selected' : '' }}>
+    {{ $mobil->merek }} - {{ $mobil->nopolisi }} (Rp {{ number_format($mobil->harga, 0, ',', '.') }}/hari)
+</option>
                                         @endforeach
                                     </select>
                                     @error('mobil_id')

@@ -62,6 +62,34 @@
                         </div>
 
                         <div class="col">
+    <div class="card bg-danger text-white h-100">
+        <div class="card-body d-flex justify-content-between align-items-center">
+            <div>
+                <h4 class="fw-bold">
+                    {{ \App\Models\Transaksi::where('status', 'Terlambat')->count() }}
+                </h4>
+                <p class="mb-0">Terlambat</p>
+            </div>
+            <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
+        </div>
+    </div>
+</div>
+
+<div class="col">
+    <div class="card bg-secondary text-white h-100">
+        <div class="card-body d-flex justify-content-between align-items-center">
+            <div>
+                <h4 class="fw-bold">
+                    {{ \App\Models\Transaksi::where('status', 'Selesai')->where('is_late_return', true)->count() }}
+                </h4>
+                <p class="mb-0">Selesai Terlambat</p>
+            </div>
+            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+        </div>
+    </div>
+</div>
+
+                        <div class="col">
                             <div class="card bg-success text-white h-100">
                                 <div class="card-body d-flex justify-content-between align-items-center">
                                     <div>
@@ -254,17 +282,31 @@
                                         </td>
                                         
                                         <td>
-                                            <select class="form-select form-select-sm status-select" 
-                                                    data-id="{{ $transaksi->id }}"
-                                                    style="width: auto;">
-                                                @foreach($transaksi->getAvailableStatusOptions() as $statusKey => $statusLabel)
-                                                    <option value="{{ $statusKey }}" 
-                                                            {{ $transaksi->status === $statusKey ? 'selected' : '' }}>
-                                                        {{ $statusLabel }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </td>
+    <div class="d-flex flex-column align-items-start gap-1">
+        {{-- Status Dropdown --}}
+        <select class="form-select form-select-sm status-select" 
+                data-id="{{ $transaksi->id }}"
+                style="width: auto; min-width: 120px;">
+            @foreach($transaksi->getAvailableStatusOptions() as $statusKey => $statusLabel)
+                <option value="{{ $statusKey }}" 
+                        {{ $transaksi->status === $statusKey ? 'selected' : '' }}>
+                    {{ $statusLabel }}
+                </option>
+            @endforeach
+        </select>
+        
+        {{-- Status Badge dengan indikator terlambat --}}
+        @if($transaksi->status === 'Selesai' && $transaksi->is_late_return)
+            <span class="badge bg-warning text-dark">
+                <i class="fas fa-exclamation-triangle me-1"></i>Terlambat
+            </span>
+        @elseif($transaksi->status !== 'Selesai' && $transaksi->isLate())
+            <span class="badge bg-danger">
+                <i class="fas fa-clock me-1"></i>Terlambat
+            </span>
+        @endif
+    </div>
+</td>
                                     </tr>
                                 @empty
                                     <tr>

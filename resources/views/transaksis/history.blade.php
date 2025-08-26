@@ -236,12 +236,31 @@
                                         @if(Auth::user()->role === 'admin')
                                         <td>
                                             <div>
-                                                <strong>{{ $transaksi->nama }}</strong><br>
-                                                <small class="text-muted">{{ $transaksi->ponsel }}</small><br>
-                                                <small class="text-muted">
-                                                    <i class="fas fa-map-marker-alt me-1"></i>
-                                                    {{ Str::limit($transaksi->alamat, 20) }}
-                                                </small>
+                                                @if($transaksi->user)
+                                                    @if($transaksi->user->trashed())
+                                                        <div class="mb-1">
+                                                            <span class="badge bg-secondary text-white small">
+                                                                <i class="fas fa-user-slash me-1"></i>User Dihapus
+                                                            </span>
+                                                        </div>
+                                                    @endif
+                                                    <strong>{{ $transaksi->user->name }}</strong><br>
+                                                    <small class="text-muted">{{ $transaksi->user->email }}</small><br>
+                                                    <small class="text-muted">{{ $transaksi->user->nohp }}</small>
+                                                @else
+                                                    <!-- Fallback jika data user tidak ditemukan -->
+                                                    <div class="mb-1">
+                                                        <span class="badge bg-danger text-white small">
+                                                            <i class="fas fa-exclamation-triangle me-1"></i>Data User Hilang
+                                                        </span>
+                                                    </div>
+                                                    <strong>{{ $transaksi->nama }}</strong><br>
+                                                    <small class="text-muted">{{ $transaksi->ponsel }}</small><br>
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-map-marker-alt me-1"></i>
+                                                        {{ Str::limit($transaksi->alamat, 20) }}
+                                                    </small>
+                                                @endif
                                             </div>
                                         </td>
                                         @endif
@@ -249,21 +268,21 @@
                                         <td>
                                             <div class="d-flex align-items-center">
                                                 @php
-    $archivedFotoPath = \App\Http\Controllers\MobilController::getArchivedFotoPath($transaksi->mobil->foto ?? '');
-@endphp
+                                                    $archivedFotoPath = \App\Http\Controllers\MobilController::getArchivedFotoPath($transaksi->mobil->foto ?? '');
+                                                @endphp
 
-@if($archivedFotoPath)
-    <img src="{{ asset('storage/' . $archivedFotoPath) }}" 
-         alt="{{ $transaksi->mobil->merek ?? 'Mobil tidak tersedia' }}" 
-         class="me-3 rounded" 
-         style="width: 130px; height: 65px; object-fit: cover;"
-         onerror="this.src='{{ asset('images/no-car.png') }}'; this.style.width='60px'; this.style.height='40px';">
-@else
-    <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" 
-         style="width: 60px; height: 40px;">
-        <i class="fas fa-car text-muted"></i>
-    </div>
-@endif
+                                                @if($archivedFotoPath)
+                                                    <img src="{{ asset('storage/' . $archivedFotoPath) }}" 
+                                                        alt="{{ $transaksi->mobil->merek ?? 'Mobil tidak tersedia' }}" 
+                                                        class="me-3 rounded" 
+                                                        style="width: 130px; height: 65px; object-fit: cover;"
+                                                        onerror="this.src='{{ asset('images/no-car.png') }}'; this.style.width='60px'; this.style.height='40px';">
+                                                @else
+                                                    <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" 
+                                                        style="width: 60px; height: 40px;">
+                                                        <i class="fas fa-car text-muted"></i>
+                                                    </div>
+                                                @endif
                                                 <div>
                                                     <strong>{{ $transaksi->mobil->merek }}</strong><br>
                                                     <small class="text-muted">{{ $transaksi->mobil->nopolisi }}</small><br>

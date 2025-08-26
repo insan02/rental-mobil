@@ -55,57 +55,97 @@ class TransaksiController extends Controller
 }
 
 
-    /**
-     * Display all transactions for admin (separate method)
-     */
-    public function adminIndex(Request $request)
-    {
-        // Update late transactions before showing admin page
-        $this->updateLateTransactions();
-        
-        $perPage = $request->get('per_page', 10); // Default 10 items per page
-        $search = $request->get('search');
-        $statusFilter = $request->get('status_filter');
-        
-        // Only for admin - show transactions that are not completed (exclude 'Selesai')
-        $query = Transaksi::with(['user', 'mobil'])
-                        ->where('status', '!=', Transaksi::STATUS_SELESAI);
-        
-        // Apply search filter
-        if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->where('nama', 'LIKE', "%{$search}%")
-                ->orWhere('ponsel', 'LIKE', "%{$search}%")
-                ->orWhere('alamat', 'LIKE', "%{$search}%")
-                ->orWhere('total', 'LIKE', "%{$search}%")
-                ->orWhereHas('mobil', function($mq) use ($search) {
-                    $mq->where('merek', 'LIKE', "%{$search}%")
-                        ->orWhere('nopolisi', 'LIKE', "%{$search}%");
-                })
-                ->orWhereHas('user', function($uq) use ($search) {
-                    $uq->where('name', 'LIKE', "%{$search}%")
-                        ->orWhere('email', 'LIKE', "%{$search}%");
-                });
-            });
-        }
-        
-        // Apply status filter
-        if ($statusFilter && $statusFilter !== 'all') {
-            $query->where('status', $statusFilter);
-        }
-        
-        $transaksis = $query->latest()->paginate($perPage);
-        
-        // Get available status options for filter
-        $statusOptions = [
-            'all' => 'Semua Status',
-            'Wait' => 'Menunggu',
-            'Proses' => 'Diproses',
-            'Terlambat' => 'Terlambat'
-        ];
-        
-        return view('transaksis.admin-index', compact('transaksis', 'statusOptions'));
+    public function updateStatus(Request $request, Transaksi $transaksi)
+{
+    // Only admin can update status
+    if (Auth::user()->role !== 'admin') {
+        return redirect()->back()->with('error', 'Tidak memiliki akses.');
     }
+
+    $availableStatuses = array_keys($transaksi->getAvailableStatusOptions());
+    
+    $request->validate([
+        'status' => 'required|string|in:' . implode(',', $availableStatuses),
+    ]);
+
+    $oldStatus = $transaksi->status;
+    $newStatus = $request->status;
+    $updateData = ['status' => $newStatus];
+    
+    // Auto-fill tgl_kembali_aktual when status becomes "Selesai"
+    if ($newStatus === Transaksi::STATUS_SELESAI && !$transaksi->tgl_kembali_aktual) {
+        $updateData['tgl_kembali_aktual'] = Carbon::now();
+    }
+
+    // Jika status berubah dari Terlambat ke Selesai, tandai sebagai pengembalian terlambat
+    if ($oldStatus === Transaksi::STATUS_TERLAMBAT && $newStatus === Transaksi::STATUS_SELESAI) {
+        $updateData['is_late_return'] = true;
+        
+        // Pastikan tgl_kembali_aktual diset
+        if (!$transaksi->tgl_kembali_aktual) {
+            $updateData['tgl_kembali_aktual'] = Carbon::now();
+        }
+    }
+
+    $transaksi->update($updateData);
+
+    // Custom success message based on status change
+    $message = 'Status transaksi berhasil diupdate.';
+    if ($oldStatus === Transaksi::STATUS_TERLAMBAT && $newStatus === Transaksi::STATUS_SELESAI) {
+        $message = 'Transaksi berhasil diselesaikan. Status terlambat tetap tercatat.';
+    }
+
+    return redirect()->back()->with('success', $message);
+}
+
+public function adminIndex(Request $request)
+{
+    // Update late transactions before showing admin page
+    $this->updateLateTransactions();
+    
+    $perPage = $request->get('per_page', 10); // Default 10 items per page
+    $search = $request->get('search');
+    $statusFilter = $request->get('status_filter');
+    
+    // Only for admin - show transactions that are not completed (exclude 'Selesai')
+    $query = Transaksi::with(['user', 'mobil'])
+                    ->where('status', '!=', Transaksi::STATUS_SELESAI);
+    
+    // Apply search filter
+    if ($search) {
+        $query->where(function($q) use ($search) {
+            $q->where('nama', 'LIKE', "%{$search}%")
+            ->orWhere('ponsel', 'LIKE', "%{$search}%")
+            ->orWhere('alamat', 'LIKE', "%{$search}%")
+            ->orWhere('total', 'LIKE', "%{$search}%")
+            ->orWhereHas('mobil', function($mq) use ($search) {
+                $mq->where('merek', 'LIKE', "%{$search}%")
+                    ->orWhere('nopolisi', 'LIKE', "%{$search}%");
+            })
+            ->orWhereHas('user', function($uq) use ($search) {
+                $uq->where('name', 'LIKE', "%{$search}%")
+                    ->orWhere('email', 'LIKE', "%{$search}%");
+            });
+        });
+    }
+    
+    // Apply status filter
+    if ($statusFilter && $statusFilter !== 'all') {
+        $query->where('status', $statusFilter);
+    }
+    
+    $transaksis = $query->latest()->paginate($perPage);
+    
+    // Get available status options for filter
+    $statusOptions = [
+        'all' => 'Semua Status',
+        'Wait' => 'Menunggu',
+        'Proses' => 'Diproses',
+        'Terlambat' => 'Terlambat'
+    ];
+    
+    return view('transaksis.admin-index', compact('transaksis', 'statusOptions'));
+}
 
     /**
  * Display transaction history for users
@@ -115,16 +155,24 @@ public function history(Request $request)
     $user = Auth::user();
     $perPage = $request->get('per_page', 10);
     $search = $request->get('search');
-    $status = $request->get('status');
+    $status = $request->get('status_filter');
     
-    // Base query dengan eager loading untuk mobil (termasuk yang soft deleted)
+    // Base query dengan eager loading untuk mobil dan user (termasuk yang soft deleted)
+    // HANYA AMBIL DATA DENGAN STATUS 'Selesai'
     if ($user->role === 'admin') {
         $query = Transaksi::withTrashed()
-                    ->with(['user', 'mobil' => function($query) {
-                        $query->withTrashed(); // Include soft deleted mobil
-                    }]);
+                    ->where('status', 'Selesai') // Filter hanya status Selesai
+                    ->with([
+                        'user' => function($query) {
+                            $query->withTrashed(); // Include soft deleted users
+                        }, 
+                        'mobil' => function($query) {
+                            $query->withTrashed(); // Include soft deleted mobil
+                        }
+                    ]);
     } else {
         $query = Transaksi::where('user_id', $user->id)
+                    ->where('status', 'Selesai') // Filter hanya status Selesai
                     ->with(['mobil' => function($query) {
                         $query->withTrashed(); // Include soft deleted mobil
                     }]);
@@ -142,16 +190,27 @@ public function history(Request $request)
                      ->where('merek', 'LIKE', "%{$search}%")
                      ->orWhere('nopolisi', 'LIKE', "%{$search}%")
                      ->orWhere('jenis', 'LIKE', "%{$search}%");
+              })
+              // Tambahan: search berdasarkan user yang mungkin sudah dihapus
+              ->orWhereHas('user', function($uq) use ($search) {
+                  $uq->withTrashed()
+                     ->where('name', 'LIKE', "%{$search}%")
+                     ->orWhere('email', 'LIKE', "%{$search}%")
+                     ->orWhere('nohp', 'LIKE', "%{$search}%");
               });
         });
     }
     
-    // Apply status filter
-    if ($status && $status !== 'all') {
+    // Apply status filter - sekarang hanya untuk sub-kategori dari "Selesai"
+    // Karena kita sudah filter status Selesai di atas, status filter bisa digunakan untuk kategori lain
+    // Atau bisa dihapus jika tidak diperlukan
+    if ($status && $status !== 'all' && $status !== 'Selesai') {
+        // Jika ada filter status selain 'Selesai', tidak akan ada hasil
+        // Karena base query sudah membatasi hanya status 'Selesai'
         $query->where('status', $status);
     }
     
-    // Apply date filter - ADDED: Make date filter functional
+    // Apply date filter
     $dateFilter = $request->get('date_filter');
     if ($dateFilter && $dateFilter !== 'all') {
         switch ($dateFilter) {
@@ -173,16 +232,37 @@ public function history(Request $request)
     
     $transaksis = $query->latest()->paginate($perPage);
     
-    // Get available statuses for filter - FIXED: Changed variable name to statusOptions
+    // Update status options - hanya tampilkan sub-kategori yang relevan untuk transaksi selesai
+    // Atau bisa disederhanakan menjadi filter berdasarkan pengembalian
     $statusOptions = [
-        'all' => 'Semua Status',
-        'Wait' => 'Menunggu',
-        'Proses' => 'Dalam Proses', 
-        'Selesai' => 'Selesai',
-        'Terlambat' => 'Terlambat'
+        'all' => 'Semua Transaksi Selesai',
+        'early_return' => 'Kembali Lebih Awal',
+        'on_time' => 'Kembali Tepat Waktu', 
+        'late_return' => 'Kembali Terlambat'
     ];
     
-    // Add date filter options - ADDED: This was missing
+    // Jika Anda ingin menggunakan filter berdasarkan waktu pengembalian
+    if ($status && $status !== 'all') {
+        switch ($status) {
+            case 'early_return':
+                $query->whereNotNull('tgl_kembali_aktual')
+                      ->whereRaw('DATE(tgl_kembali_aktual) < DATE(tgl_kembali)');
+                break;
+            case 'on_time':
+                $query->whereNotNull('tgl_kembali_aktual')
+                      ->whereRaw('DATE(tgl_kembali_aktual) = DATE(tgl_kembali)');
+                break;
+            case 'late_return':
+                $query->whereNotNull('tgl_kembali_aktual')
+                      ->whereRaw('DATE(tgl_kembali_aktual) > DATE(tgl_kembali)');
+                break;
+        }
+        
+        // Re-execute query dengan filter tambahan
+        $transaksis = $query->latest()->paginate($perPage);
+    }
+    
+    // Add date filter options
     $dateOptions = [
         'all' => 'Semua Periode',
         'today' => 'Hari Ini',
@@ -554,33 +634,7 @@ private function deleteArchivedFoto($fotoPath)
     }
 }
 
-    /**
-     * Update status transaksi (untuk admin)
-     */
-    public function updateStatus(Request $request, Transaksi $transaksi)
-    {
-        // Only admin can update status
-        if (Auth::user()->role !== 'admin') {
-            return redirect()->back()->with('error', 'Tidak memiliki akses.');
-        }
-
-        $availableStatuses = array_keys($transaksi->getAvailableStatusOptions());
-        
-        $request->validate([
-            'status' => 'required|string|in:' . implode(',', $availableStatuses),
-        ]);
-
-        $updateData = ['status' => $request->status];
-        
-        // Auto-fill tgl_kembali_aktual when status becomes "Selesai"
-        if ($request->status === Transaksi::STATUS_SELESAI && !$transaksi->tgl_kembali_aktual) {
-            $updateData['tgl_kembali_aktual'] = Carbon::now()->format('Y-m-d');
-        }
-
-        $transaksi->update($updateData);
-
-        return redirect()->back()->with('success', 'Status transaksi berhasil diupdate.');
-    }
+    
 
     /**
      * Update late transactions automatically

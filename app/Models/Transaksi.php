@@ -25,7 +25,8 @@ class Transaksi extends Model
         'tgl_kembali',
         'tgl_kembali_aktual',
         'total',
-        'status'
+        'status',
+        'is_late_return' // Tambahan field untuk menandai pengembalian terlambat
     ];
 
     protected $casts = [
@@ -36,7 +37,8 @@ class Transaksi extends Model
         'tgl_kembali_aktual' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
-        'deleted_at' => 'datetime'
+        'deleted_at' => 'datetime',
+        'is_late_return' => 'boolean'
     ];
 
     // Status constants
@@ -68,18 +70,17 @@ class Transaksi extends Model
         return $value ? Carbon::parse($value) : null;
     }
 
-
-    // Check if transaction is late
+    // Check if transaction is currently late (before completion)
     public function isLate()
     {
-        if ($this->status === self::STATUS_SELESAI || $this->status === self::STATUS_TERLAMBAT) {
-            return false;
+        // Jika sudah selesai, cek dari is_late_return flag
+        if ($this->status === self::STATUS_SELESAI) {
+            return $this->is_late_return ?? false;
         }
 
         $expectedReturnDate = $this->tgl_kembali;
         return $expectedReturnDate instanceof Carbon && Carbon::now()->gt($expectedReturnDate);
     }
-
 
     // Check if actual return was late
     public function wasReturnedLate()
@@ -94,7 +95,6 @@ class Transaksi extends Model
         return $actualReturn->gt($expectedReturn);
     }
 
-
     // Get days difference between expected and actual return
     public function getDaysLateDifference()
     {
@@ -108,8 +108,7 @@ class Transaksi extends Model
         return $expectedReturn->diffInDays($actualReturn, false);
     }
 
-
-    // Get available status options based on current status
+    // Get available status options based on current status - DIPERBAIKI
     public function getAvailableStatusOptions()
     {
         $allStatuses = [
@@ -130,10 +129,16 @@ class Transaksi extends Model
                     self::STATUS_PROSES => 'Proses',
                     self::STATUS_SELESAI => 'Selesai'
                 ];
-            case self::STATUS_SELESAI:
             case self::STATUS_TERLAMBAT:
+                // Admin bisa mengubah dari Terlambat ke Selesai
                 return [
-                    $this->status => $allStatuses[$this->status]
+                    self::STATUS_TERLAMBAT => 'Terlambat',
+                    self::STATUS_SELESAI => 'Selesai'
+                ];
+            case self::STATUS_SELESAI:
+                // Selesai tidak bisa diubah lagi
+                return [
+                    self::STATUS_SELESAI => 'Selesai'
                 ];
             default:
                 return $allStatuses;
@@ -152,7 +157,33 @@ class Transaksi extends Model
         return $this->status === self::STATUS_SELESAI;
     }
 
-    // Boot method to handle automatic status updates
+    // Get status display with late indicator
+    public function getStatusDisplay()
+    {
+        if ($this->status === self::STATUS_SELESAI && $this->is_late_return) {
+            return 'Selesai (Terlambat)';
+        }
+        return $this->status;
+    }
+
+    // Get status badge class for display
+    public function getStatusBadgeClass()
+    {
+        switch ($this->status) {
+            case self::STATUS_WAIT:
+                return 'bg-warning';
+            case self::STATUS_PROSES:
+                return 'bg-info';
+            case self::STATUS_SELESAI:
+                return $this->is_late_return ? 'bg-success bg-gradient' : 'bg-success';
+            case self::STATUS_TERLAMBAT:
+                return 'bg-danger';
+            default:
+                return 'bg-secondary';
+        }
+    }
+
+    // Boot method to handle automatic status updates - DIPERBAIKI
     protected static function boot()
     {
         parent::boot();
@@ -167,17 +198,29 @@ class Transaksi extends Model
             }
 
             // Auto-update to Terlambat if late and not completed
-            if ($transaksi->isLate() && $transaksi->status !== self::STATUS_SELESAI) {
+            if ($transaksi->status !== self::STATUS_SELESAI && $transaksi->isLate()) {
                 $transaksi->status = self::STATUS_TERLAMBAT;
+            }
+
+            // When status changes to Selesai, mark if it was returned late
+            if ($transaksi->status === self::STATUS_SELESAI) {
+                // Jika tgl_kembali_aktual belum diset, set ke sekarang
+                if (!$transaksi->tgl_kembali_aktual) {
+                    $transaksi->tgl_kembali_aktual = Carbon::now();
+                }
+                
+                // Cek apakah pengembalian terlambat
+                if ($transaksi->wasReturnedLate() || $transaksi->getOriginal('status') === self::STATUS_TERLAMBAT) {
+                    $transaksi->is_late_return = true;
+                }
             }
         });
     }
 
     // Scope for checking late transactions
     public function scopeLateTransactions($query)
-{
-    return $query->whereNotIn('status', [self::STATUS_SELESAI, self::STATUS_TERLAMBAT])
-                 ->whereRaw('DATE_ADD(tgl_pesan, INTERVAL lama DAY) < NOW()');
-}
-
+    {
+        return $query->whereNotIn('status', [self::STATUS_SELESAI])
+                     ->whereRaw('DATE_ADD(tgl_pesan, INTERVAL lama DAY) < NOW()');
+    }
 }

@@ -154,33 +154,43 @@ class MobilController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Mobil $mobil)
-    {
-        // Get foto path before deletion
-        $fotoPath = $mobil->getAttribute('foto');
-        
-        // If foto exists, backup to archive before deleting
-        if (!empty($fotoPath) && Storage::disk('public')->exists($fotoPath)) {
-            // Extract filename from path
-            $filename = basename($fotoPath);
-            
-            // Copy to archived_fotomobil folder if not already exists
-            $archivePath = 'archived_fotomobil/' . $filename;
-            if (!Storage::disk('public')->exists($archivePath)) {
-                Storage::disk('public')->copy($fotoPath, $archivePath);
-            }
-            
-            // Delete from mobils folder
-            Storage::disk('public')->delete($fotoPath);
-        }
-
-        $mobil->delete();
-
+ * Remove the specified resource from storage.
+ */
+public function destroy(Mobil $mobil)
+{
+    // Check if mobil is currently in active transactions (Wait or Proses)
+    $activeTransactions = $mobil->transaksis()
+        ->whereIn('status', ['Wait', 'Proses'])
+        ->count();
+    
+    if ($activeTransactions > 0) {
         return redirect()->route('mobils.index')
-                        ->with('success', 'Mobil deleted successfully.');
+            ->with('error', 'Mobil tidak dapat dihapus karena sedang dalam transaksi (status Wait/Proses). Selesaikan transaksi terlebih dahulu.');
     }
+
+    // Get foto path before deletion
+    $fotoPath = $mobil->getAttribute('foto');
+    
+    // If foto exists, backup to archive before deleting
+    if (!empty($fotoPath) && Storage::disk('public')->exists($fotoPath)) {
+        // Extract filename from path
+        $filename = basename($fotoPath);
+        
+        // Copy to archived_fotomobil folder if not already exists
+        $archivePath = 'archived_fotomobil/' . $filename;
+        if (!Storage::disk('public')->exists($archivePath)) {
+            Storage::disk('public')->copy($fotoPath, $archivePath);
+        }
+        
+        // Delete from mobils folder
+        Storage::disk('public')->delete($fotoPath);
+    }
+
+    $mobil->delete();
+
+    return redirect()->route('mobils.index')
+                    ->with('success', 'Mobil berhasil dihapus.');
+}
 
     /**
      * Backup foto to archived_fotomobil folder

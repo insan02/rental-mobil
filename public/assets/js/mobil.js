@@ -81,19 +81,37 @@ function removePreview() {
     }
 }
 
+// mobil.js - Updated delete confirmation handling
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Handle Delete Button Click
-    document.querySelectorAll('.btn-delete').forEach(function(button) {
+    // Handle delete button click
+    const deleteButtons = document.querySelectorAll('.btn-delete');
+    
+    deleteButtons.forEach(button => {
         button.addEventListener('click', function(e) {
             e.preventDefault();
             
-            const form = this.closest('.form-delete');
             const merek = this.getAttribute('data-merek');
             const nopolisi = this.getAttribute('data-nopolisi');
+            const hasActive = this.getAttribute('data-has-active');
+            const form = this.closest('form');
             
+            // Check if mobil has active transactions
+            if (hasActive === 'true') {
+                Swal.fire({
+                    title: 'Tidak Dapat Dihapus!',
+                    text: `Mobil ${merek} (${nopolisi}) sedang dalam transaksi aktif (Wait/Proses). Selesaikan transaksi terlebih dahulu.`,
+                    icon: 'warning',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#ffc107'
+                });
+                return;
+            }
+            
+            // Show confirmation dialog for deletion
             Swal.fire({
                 title: 'Konfirmasi Hapus',
-                html: `Apakah Anda yakin ingin menghapus data mobil:<br><strong>${merek} (${nopolisi})</strong>?<br><br><span style="color: #dc3545;">Data yang dihapus tidak dapat dikembalikan!</span>`,
+                text: `Apakah Anda yakin ingin menghapus mobil ${merek} (${nopolisi})?`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc3545',
@@ -103,21 +121,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 reverseButtons: true
             }).then((result) => {
                 if (result.isConfirmed) {
+                    // Show loading state
+                    Swal.fire({
+                        title: 'Menghapus...',
+                        text: 'Mohon tunggu sebentar',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        showConfirmButton: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+                    
+                    // Submit form
                     form.submit();
                 }
             });
         });
     });
-    
-    // Show success message if exists
-    const successMessage = document.body.getAttribute('data-success-message');
-    if (successMessage) {
-        Swal.fire({
-            title: 'Berhasil!',
-            text: successMessage,
-            icon: 'success',
-            timer: 3000,
-            showConfirmButton: false
-        });
-    }
 });
+
+// Auto hide alerts after 5 seconds
+setTimeout(function() {
+    const alerts = document.querySelectorAll('.alert-dismissible');
+    alerts.forEach(alert => {
+        const bsAlert = new bootstrap.Alert(alert);
+        bsAlert.close();
+    });
+}, 5000);
